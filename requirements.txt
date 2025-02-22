@@ -11,6 +11,7 @@ kivy==2.2.1                # Cross-platform UI framework
 plyer==2.1.0               # Platform-specific APIs (e.g., GPS for position updates)
 Pillow==10.2.0             # Image processing for wolf pixel art
 kivy-garden.mapview==1.0.6 # Mapview for OpenStreetMap integration (install via garden command)
+git+https://github.com/kivy-garden/mapview.git#egg=kivy-garden.mapview
 
 # Development and Testing Tools
 pytest==7.4.3              # Unit testing framework
