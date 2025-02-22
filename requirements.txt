@@ -4,6 +4,7 @@ PyMongo==4.6.1             # MongoDB driver for Python
 requests==2.31.0           # HTTP requests for frontend-backend communication
 Werkzeug==2.3.7            # WSGI utility library for Flask
 gunicorn==21.2.0           # WSGI server for deployment (optional)
+pyyaml==6.0.1
 
 # Frontend Dependencies (Kivy for iOS/Android)
 kivy==2.2.1                # Cross-platform UI framework
