@@ -1,0 +1,21 @@
+# Backend Dependencies
+Flask==2.3.3                # Lightweight web framework for the API
+PyMongo==4.6.1             # MongoDB driver for Python
+requests==2.31.0           # HTTP requests for frontend-backend communication
+Werkzeug==2.3.7            # WSGI utility library for Flask
+gunicorn==21.2.0           # WSGI server for deployment (optional)
+
+# Frontend Dependencies (Kivy for iOS/Android)
+kivy==2.2.1                # Cross-platform UI framework
+plyer==2.1.0               # Platform-specific APIs (e.g., GPS for position updates)
+Pillow==10.2.0             # Image processing for wolf pixel art
+kivy-garden.mapview==1.0.6 # Mapview for OpenStreetMap integration (install via garden command)
+
+# Development and Testing Tools
+pytest==7.4.3              # Unit testing framework
+flake8==6.1.0              # Code linting for style consistency
+black==23.11.0             # Code formatter
+
+# Optional: Deployment and Utilities
+python-dotenv==1.0.0       # Environment variable management
+certifi==2023.11.17        # SSL certificate handling for secure requests
