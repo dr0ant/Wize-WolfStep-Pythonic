@@ -1,7 +1,8 @@
 # frontend/map_view.py
-from kivy_garden.mapview import MapView, MapMarker, MapSource
+from kivy_garden.mapview import MapView, MapSource
 from kivy.utils import platform
 from kivy.clock import Clock
+from frontend.markers.user_marker import UserMarker
 
 class WolfStepMapView(MapView):
     def __init__(self, position_menu=None, **kwargs):
@@ -20,10 +21,9 @@ class WolfStepMapView(MapView):
         self.position_menu = position_menu
         self.gps_initialized = False
 
-        # Initialize marker with default position
-        self.marker = MapMarker(lat=self.lat, lon=self.lon, source="frontend/assets/wolf_icon.png")
-        self.marker.size = (32, 32)  # Fixed size
-        self.add_marker(self.marker)
+        # Initialize user marker
+        self.user_marker = UserMarker(map_view=self, lat=self.lat, lon=self.lon)
+        self.add_widget(self.user_marker)
 
         # Schedule GPS initialization
         Clock.schedule_once(self.initialize_gps, 0)
@@ -78,10 +78,5 @@ class WolfStepMapView(MapView):
 
     def update_marker_and_center(self):
         """Update marker position and center map."""
-        if self.marker:
-            self.remove_marker(self.marker)
-        
-        self.marker = MapMarker(lat=self.lat, lon=self.lon, source="frontend/assets/wolf_icon.png")
-        self.marker.size = (32, 32)  # Fixed size
-        self.add_marker(self.marker)
+        self.user_marker.update_position(self.lat, self.lon)
         self.center_on(self.lat, self.lon)
