@@ -1,18 +1,16 @@
 # frontend/markers/user_marker.py
 from kivy.uix.widget import Widget
-from kivy.uix.label import Label
-from kivy.uix.boxlayout import BoxLayout
 from kivy_garden.mapview import MapMarker
-from kivy.graphics import Color, Ellipse, Line, PushMatrix, Rotate, PopMatrix, Rectangle, Triangle
+from kivy.graphics import Color, Ellipse, Line, PushMatrix, Rotate, PopMatrix, Triangle
 from kivy.clock import Clock
-from kivy.properties import NumericProperty, BooleanProperty, ObjectProperty
-from kivy.core.window import Window  # Added back the missing import
+from kivy.properties import NumericProperty, BooleanProperty
+from kivy.core.window import Window
+from frontend.markers.user_popup import UserPopup
 
 class UserMarker(Widget):
     opacity = NumericProperty(0.5)  # Base opacity for pulsing
     radar_scale = NumericProperty(0.1)  # Starts small and grows
     is_hovered = BooleanProperty(False)  # Track hover state
-    info_popup = ObjectProperty(None, allownone=True)  # Popup widget
 
     def __init__(self, map_view, lat, lon, **kwargs):
         super().__init__(**kwargs)
@@ -28,6 +26,9 @@ class UserMarker(Widget):
         self.wolf_marker = MapMarker(lat=self.lat, lon=self.lon, source="frontend/assets/wolf_no_BG.png")
         self.wolf_marker.size = (128, 128)  # Initial size
         self.map_view.add_marker(self.wolf_marker)
+
+        # Initialize popup reference
+        self.info_popup = None
 
         # Bind map touch events for click and hover
         self.map_view.bind(on_touch_down=self.on_map_touch_down)
@@ -50,7 +51,7 @@ class UserMarker(Widget):
 
         # Update popup position if it exists
         if self.info_popup:
-            self.update_popup_position()
+            self.info_popup.update_position()
 
     def draw_radar_effect(self):
         """Draw the radar pulse and arrow without a fixed border."""
@@ -58,9 +59,9 @@ class UserMarker(Widget):
             # Convert lat/lon to pixel coordinates
             pixel_x, pixel_y = self.map_view.get_window_xy_from(self.lat, self.lon, self.map_view.zoom)
 
-            # Calculate 200m radius in pixels
+            # Calculate 400m radius in pixels (per your update)
             meters_per_pixel = 156543.03392 * (2 ** (-self.map_view.zoom))
-            max_radius_pixels = 400 / meters_per_pixel  # Fixed 200m limit
+            max_radius_pixels = 400 / meters_per_pixel  # Fixed 400m limit
 
             # Pulsing radar effect (expanding circle)
             pulse_radius = self.radar_scale * max_radius_pixels  # Scales from 10% to 100%
@@ -68,10 +69,10 @@ class UserMarker(Widget):
             Ellipse(pos=(pixel_x - pulse_radius, pixel_y - pulse_radius), 
                     size=(pulse_radius * 2, pulse_radius * 2))
 
+            # White arrow indicating direction
             Color(1, 1, 1, 1)  # Solid white
             PushMatrix()
             Rotate(angle=-self.direction, origin=(pixel_x, pixel_y))
-
             # Draw arrowhead as a triangle
             Triangle(
                 points=[
@@ -80,16 +81,10 @@ class UserMarker(Widget):
                     pixel_x + 10, pixel_y + 10  # Right side
                 ]
             )
-
             # Draw tail spikes
             Line(points=[pixel_x - 10, pixel_y - 10, pixel_x, pixel_y - 20], width=3)  # Left spike
             Line(points=[pixel_x + 10, pixel_y - 10, pixel_x, pixel_y - 20], width=3)  # Right spike
-
             PopMatrix()
-
-
-
-
 
             # Hover border (drawn last to be under wolf but over circle)
             if self.is_hovered:
@@ -97,9 +92,9 @@ class UserMarker(Widget):
                 Line(rectangle=(pixel_x - 16, pixel_y - 16, 32, 32), width=2)  # Around 32x32 wolf
 
     def radar_pulse(self, dt):
-        """Animate the radar pulse (expanding but NOT exceeding 200m)."""
+        """Animate the radar pulse (expanding but NOT exceeding 400m)."""
         self.radar_scale += 0.03  # Gradually expand
-        if self.radar_scale >= 1.0:  # When reaching 100% (200m), reset
+        if self.radar_scale >= 1.0:  # When reaching 100% (400m), reset
             self.radar_scale = 0.1  # Restart from 10%
 
         self.canvas.clear()
@@ -154,60 +149,12 @@ class UserMarker(Widget):
             self.show_info_popup()
 
     def show_info_popup(self):
-        """Create and show the info popup centered at the radar radius."""
-        # Hardcoded user info (replace with MongoDB later)
-        user_info_text = "Name: John Doe\nAge: 30\nLocation: New York, USA\nBio: Software Developer passionate about data science and machine learning."
-
-        # Create the label for user info
-        info_label = Label(
-            text=user_info_text,
-            font_size='14sp',
-            size_hint=(None, None),
-            size=(200, 100),
-            color=(0, 0, 0, 1),
-            halign="center",
-            valign="middle"
-        )
-        info_label.bind(size=info_label.setter('text_size'))  # Wrap text
-
-        # Create a BoxLayout with background color
-        bubble_layout = BoxLayout(orientation='vertical', size=(400, 100))
-        with bubble_layout.canvas.before:
-            Color(1, 1, 1, 1)  # White background
-            self.bg_rect = Rectangle(pos=bubble_layout.pos, size=bubble_layout.size)
-        bubble_layout.bind(pos=self.update_bg_rect, size=self.update_bg_rect)
-        bubble_layout.add_widget(info_label)
-
-        # Position centered at wolf (same as radar)
-        pixel_x, pixel_y = self.map_view.get_window_xy_from(self.lat, self.lon, self.map_view.zoom)
-        window_x = pixel_x - 100  # Center horizontally (200/2)
-        window_y = pixel_y - 50   # Center vertically (100/2)
-
-        # Create the popup widget as a child of UserMarker
-        self.info_popup = Widget(size=(200, 100), pos=(window_x, window_y))
-        self.info_popup.add_widget(bubble_layout)
-        self.add_widget(self.info_popup)
-
-        # Debug positioning
-        print(f"Wolf at: ({pixel_x}, {pixel_y}), Popup at: ({window_x}, {window_y})")
-
-    def update_bg_rect(self, instance, value):
-        """Update the background rectangle position and size."""
-        if hasattr(self, 'bg_rect'):
-            self.bg_rect.pos = instance.pos
-            self.bg_rect.size = instance.size
-
-    def update_popup_position(self):
-        """Update the popup position to match the radar center."""
-        if self.info_popup:
-            pixel_x, pixel_y = self.map_view.get_window_xy_from(self.lat, self.lon, self.map_view.zoom)
-            window_x = pixel_x - 100  # Center horizontally (200/2)
-            window_y = pixel_y - 50   # Center vertically (100/2)
-            self.info_popup.pos = (window_x, window_y)
-            print(f"Popup updated to: ({window_x}, {window_y})")
+        """Show the info popup 10px above the UserMarker using Kivy Popup."""
+        self.info_popup = UserPopup(self)
+        self.info_popup.open()
 
     def remove_info_popup(self):
-        """Remove the info popup from UserMarker."""
+        """Dismiss the info popup."""
         if self.info_popup:
-            self.remove_widget(self.info_popup)
+            self.info_popup.dismiss()
             self.info_popup = None
