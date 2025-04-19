@@ -1,16 +1,13 @@
-# frontend/markers/user_marker.py
 from kivy.uix.widget import Widget
 from kivy_garden.mapview import MapMarker
-from kivy.graphics import Color, Ellipse, Line, PushMatrix, Rotate, PopMatrix, Triangle
+from kivy.graphics import Color, Line, Ellipse, PushMatrix, Rotate, PopMatrix, Triangle, Rectangle
 from kivy.clock import Clock
-from kivy.properties import NumericProperty, BooleanProperty
-from kivy.core.window import Window
-from frontend.markers.user_popup import UserPopup
+from kivy.properties import NumericProperty
+from kivy.core.text import Label as CoreLabel
 
 class UserMarker(Widget):
     opacity = NumericProperty(0.5)  # Base opacity for pulsing
     radar_scale = NumericProperty(0.1)  # Starts small and grows
-    is_hovered = BooleanProperty(False)  # Track hover state
 
     def __init__(self, map_view, lat, lon, **kwargs):
         super().__init__(**kwargs)
@@ -27,13 +24,6 @@ class UserMarker(Widget):
         self.wolf_marker.size = (128, 128)  # Initial size
         self.map_view.add_marker(self.wolf_marker)
 
-        # Initialize popup reference
-        self.info_popup = None
-
-        # Bind map touch events for click and hover
-        self.map_view.bind(on_touch_down=self.on_map_touch_down)
-        Window.bind(mouse_pos=self.on_mouse_pos)
-
     def update_position(self, lat, lon, direction=0):
         """Update marker position and direction."""
         self.lat = lat
@@ -49,12 +39,8 @@ class UserMarker(Widget):
         self.wolf_marker.size = (128, 128)  # Adjusted size for updates
         self.map_view.add_marker(self.wolf_marker)
 
-        # Update popup position if it exists
-        if self.info_popup:
-            self.info_popup.update_position()
-
     def draw_radar_effect(self):
-        """Draw the radar pulse and arrow with the correct layering."""
+        """Draw the radar pulse, arrow, and label with the correct layering."""
         with self.canvas:
             # Convert lat/lon to pixel coordinates
             pixel_x, pixel_y = self.map_view.get_window_xy_from(self.lat, self.lon, self.map_view.zoom)
@@ -87,42 +73,18 @@ class UserMarker(Widget):
             Line(points=[pixel_x + 10, pixel_y - 10, pixel_x, pixel_y - 20], width=3)  # Right spike
             PopMatrix()
 
-            # Hover border (drawn last to be under wolf but over circle)
-            if self.is_hovered:
-                Color(1, 1, 1, 1)  # Solid white
-                Line(rectangle=(pixel_x - 0, pixel_y - 0, 128, 128), width=2)  # Border around the wolf icon
+            # Draw the label "@dr0ant" above the wolf image
+            core_label = CoreLabel(text="@dr0ant", font_size=32, color=(1, 1, 1, 1))  # White text
+            core_label.refresh()  # Refresh to calculate texture size
+            text_texture = core_label.texture
 
-        # Ensure the wolf_marker is always on top
-        self.map_view.remove_marker(self.wolf_marker)
-        self.map_view.add_marker(self.wolf_marker)
+            # Position the text 20 pixels above the wolf image
+            text_x = pixel_x - text_texture.width / 2  # Center horizontally
+            text_y = pixel_y + self.wolf_marker.size[1] / 2 + 50  # 20 pixels above the wolf image
 
-    def on_mouse_pos(self, window, pos):
-        """Detect hover by checking mouse position relative to marker."""
-        pixel_x, pixel_y = self.map_view.get_window_xy_from(self.lat, self.lon, self.map_view.zoom)
-        marker_size = self.wolf_marker.size
-
-        # Adjust hover detection to better match the icon's shape
-        hover_margin_x = 20  # Adjust this value to better match the icon's width
-        hover_margin_y = 40  # Adjust this value to better match the icon's height
-        adjusted_bounds = (
-            pixel_x - hover_margin_x,
-            pixel_y - hover_margin_y,
-            pixel_x + hover_margin_x,
-            pixel_y + hover_margin_y
-        )
-
-        if (adjusted_bounds[0] <= pos[0] <= adjusted_bounds[2] and 
-            adjusted_bounds[1] <= pos[1] <= adjusted_bounds[3]):
-            if not self.is_hovered:
-                self.is_hovered = True
-                self.canvas.clear()
-                self.draw_radar_effect()
-        else:
-            if self.is_hovered:
-                self.is_hovered = False
-                self.canvas.clear()
-                self.draw_radar_effect()
- 
+            # Add the text texture to the canvas
+            self.canvas.add(Color(1, 1, 1, 1))  # Set the color to white
+            self.canvas.add(Rectangle(texture=text_texture, pos=(text_x, text_y), size=(text_texture.width, text_texture.height)))
 
     def radar_pulse(self, dt):
         """Animate the radar pulse (expanding but NOT exceeding 400m)."""
@@ -131,62 +93,3 @@ class UserMarker(Widget):
             self.radar_scale = 0.1  # Restart from 10%
         self.canvas.clear()
         self.draw_radar_effect()
-
-    def on_map_touch_down(self, instance, touch):
-        """Handle clicks on the map to detect marker interaction."""
-        pixel_x, pixel_y = self.map_view.get_window_xy_from(self.lat, self.lon, self.map_view.zoom)
-        marker_size = self.wolf_marker.size  # (32, 32)
-        marker_bounds = (
-            pixel_x - marker_size[0] / 2,
-            pixel_y - marker_size[1] / 2,
-            pixel_x + marker_size[0] / 2,
-            pixel_y + marker_size[1] / 2
-        )
-
-        if (marker_bounds[0] <= touch.x <= marker_bounds[2] and 
-            marker_bounds[1] <= touch.y <= marker_bounds[3]):
-            print("Marker clicked!")
-            self.toggle_info_popup()
-            return True  # Consume the touch event
-        return False
-
-    def on_mouse_pos(self, window, pos):
-        """Detect hover by checking mouse position relative to marker."""
-        pixel_x, pixel_y = self.map_view.get_window_xy_from(self.lat, self.lon, self.map_view.zoom)
-        marker_size = self.wolf_marker.size
-        marker_bounds = (
-            pixel_x - marker_size[0] / 2,
-            pixel_y - marker_size[1] / 2,
-            pixel_x + marker_size[0] / 2,
-            pixel_y + marker_size[1] / 2
-        )
-
-        if (marker_bounds[0] <= pos[0] <= marker_bounds[2] and 
-            marker_bounds[1] <= pos[1] <= marker_bounds[3]):
-            if not self.is_hovered:
-                self.is_hovered = True
-                self.canvas.clear()
-                self.draw_radar_effect()
-        else:
-            if self.is_hovered:
-                self.is_hovered = False
-                self.canvas.clear()
-                self.draw_radar_effect()
-
-    def toggle_info_popup(self):
-        """Toggle the info popup visibility."""
-        if self.info_popup:
-            self.remove_info_popup()
-        else:
-            self.show_info_popup()
-
-    def show_info_popup(self):
-        """Show the info popup 10px above the UserMarker using Kivy Popup."""
-        self.info_popup = UserPopup(self)
-        self.info_popup.open()
-
-    def remove_info_popup(self):
-        """Dismiss the info popup."""
-        if self.info_popup:
-            self.info_popup.dismiss()
-            self.info_popup = None
