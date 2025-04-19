@@ -46,7 +46,7 @@ class UserMarker(Widget):
         # Update wolf marker position (on top)
         self.map_view.remove_marker(self.wolf_marker)
         self.wolf_marker = MapMarker(lat=self.lat, lon=self.lon, source="frontend/assets/wolf_no_BG.png")
-        self.wolf_marker.size = (32, 32)  # Adjusted size for updates
+        self.wolf_marker.size = (128, 128)  # Adjusted size for updates
         self.map_view.add_marker(self.wolf_marker)
 
         # Update popup position if it exists
@@ -54,12 +54,12 @@ class UserMarker(Widget):
             self.info_popup.update_position()
 
     def draw_radar_effect(self):
-        """Draw the radar pulse and arrow without a fixed border."""
+        """Draw the radar pulse and arrow with the correct layering."""
         with self.canvas:
             # Convert lat/lon to pixel coordinates
             pixel_x, pixel_y = self.map_view.get_window_xy_from(self.lat, self.lon, self.map_view.zoom)
 
-            # Calculate 400m radius in pixels (per your update)
+            # Calculate 400m radius in pixels
             meters_per_pixel = 156543.03392 * (2 ** (-self.map_view.zoom))
             max_radius_pixels = 400 / meters_per_pixel  # Fixed 400m limit
 
@@ -69,8 +69,8 @@ class UserMarker(Widget):
             Ellipse(pos=(pixel_x - pulse_radius, pixel_y - pulse_radius), 
                     size=(pulse_radius * 2, pulse_radius * 2))
 
-            # White arrow indicating direction
-            Color(1, 1, 1, 1)  # Solid white
+            # Light red arrow indicating direction
+            Color(1, 0.5, 0.5, 1)  # Light red for the arrowhead
             PushMatrix()
             Rotate(angle=-self.direction, origin=(pixel_x, pixel_y))
             # Draw arrowhead as a triangle
@@ -81,7 +81,8 @@ class UserMarker(Widget):
                     pixel_x + 10, pixel_y + 10  # Right side
                 ]
             )
-            # Draw tail spikes
+            # Very light gray tail spikes
+            Color(0.9, 0.9, 0.9, 1)  # Very light gray for the tail spikes
             Line(points=[pixel_x - 10, pixel_y - 10, pixel_x, pixel_y - 20], width=3)  # Left spike
             Line(points=[pixel_x + 10, pixel_y - 10, pixel_x, pixel_y - 20], width=3)  # Right spike
             PopMatrix()
@@ -89,14 +90,45 @@ class UserMarker(Widget):
             # Hover border (drawn last to be under wolf but over circle)
             if self.is_hovered:
                 Color(1, 1, 1, 1)  # Solid white
-                Line(rectangle=(pixel_x - 16, pixel_y - 16, 32, 32), width=2)  # Around 32x32 wolf
+                Line(rectangle=(pixel_x - 0, pixel_y - 0, 128, 128), width=2)  # Border around the wolf icon
+
+        # Ensure the wolf_marker is always on top
+        self.map_view.remove_marker(self.wolf_marker)
+        self.map_view.add_marker(self.wolf_marker)
+
+    def on_mouse_pos(self, window, pos):
+        """Detect hover by checking mouse position relative to marker."""
+        pixel_x, pixel_y = self.map_view.get_window_xy_from(self.lat, self.lon, self.map_view.zoom)
+        marker_size = self.wolf_marker.size
+
+        # Adjust hover detection to better match the icon's shape
+        hover_margin_x = 20  # Adjust this value to better match the icon's width
+        hover_margin_y = 40  # Adjust this value to better match the icon's height
+        adjusted_bounds = (
+            pixel_x - hover_margin_x,
+            pixel_y - hover_margin_y,
+            pixel_x + hover_margin_x,
+            pixel_y + hover_margin_y
+        )
+
+        if (adjusted_bounds[0] <= pos[0] <= adjusted_bounds[2] and 
+            adjusted_bounds[1] <= pos[1] <= adjusted_bounds[3]):
+            if not self.is_hovered:
+                self.is_hovered = True
+                self.canvas.clear()
+                self.draw_radar_effect()
+        else:
+            if self.is_hovered:
+                self.is_hovered = False
+                self.canvas.clear()
+                self.draw_radar_effect()
+ 
 
     def radar_pulse(self, dt):
         """Animate the radar pulse (expanding but NOT exceeding 400m)."""
         self.radar_scale += 0.03  # Gradually expand
         if self.radar_scale >= 1.0:  # When reaching 100% (400m), reset
             self.radar_scale = 0.1  # Restart from 10%
-
         self.canvas.clear()
         self.draw_radar_effect()
 

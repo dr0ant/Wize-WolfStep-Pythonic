@@ -23,3 +23,5 @@ black==23.11.0              # Code formatter
 # Optional: Deployment and Utilities
 python-dotenv==1.0.0        # Environment variable management
 certifi==2023.11.17         # SSL certificate handling for secure requests
+geocoder
+geocoder==1.38.1          # Geocoding library for address to coordinates
